@@ -86,7 +86,7 @@ nt_table_names = [results[0] for results in Postql.get_table_names() if re.searc
 
 os.environ["PGPASSWORD"] = POSG_PASS
 # command = 'pg_dump -U {} -w  -t "^nt_*" -f ./dev_x3.sql {}'.format(POSG_USER, POSG_DB)
-command = 'pg_dump -U {} -w  -t "^nt_*" {} > ./dev_x3.sql '.format(POSG_USER, POSG_DB)
+command = 'pg_dump -U {} -h {} -w  -t "^nt_*" {} > ./dev_x3.sql '.format(POSG_USER, POSG_HOST ,POSG_DB)
 
 c = delegator.run(command)
 
