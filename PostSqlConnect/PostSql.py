@@ -2,12 +2,46 @@ import psycopg2
 import re
 from psycopg2.sql import Identifier, SQL
 from datetime import datetime
+from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 
 def delete_null_char(value):
     if isinstance(value, str) and re.search('\x00',value):
         return value.replace("\x00", "\uFFFD")
     else:  
         return value
+
+class PostSqlIsolatedDrop:
+    def __init__(self, host, user, password, database) -> None:
+        self.host = host
+        self.user = user
+        self.db_name= database
+        self.password = password
+        # self.connection = psycopg2.connect(("dbname='{}' user={} password={}").format(database, user, password))
+        self.connection = psycopg2.connect(host= self.host, user = self.user, password= self.password)
+        self.connection.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT);
+        self.cursor = self.connection.cursor()
+        self.cursor.execute("drop database "+self.db_name+";")
+        self.cursor.close()
+        self.connection.close()
+
+
+
+
+class PostSqlIsolated:
+    def __init__(self, host, user, password, database) -> None:
+        self.host = host
+        self.user = user
+        self.db_name= database
+        self.password = password
+        # self.connection = psycopg2.connect(("dbname='{}' user={} password={}").format(database, user, password))
+        self.connection = psycopg2.connect(host= self.host, user = self.user, password= self.password)
+        self.connection.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT);
+        self.cursor = self.connection.cursor()
+        self.cursor.execute("create database "+self.db_name+";")
+
+    def close_conections(self): 
+        self.cursor.close()
+        self.connection.close()
 
 class PostSqlConnect:
     
@@ -32,7 +66,7 @@ class PostSqlConnect:
         self.cursor.execute(count_stament)
         columns = self.cursor.fetchall()
         
-        if table_name == "nt_users":
+        if table_name == "xyxy_users":
             i = 0
             modified_users = []
             for user in rows:
@@ -84,7 +118,7 @@ class PostSqlConnect:
                     formated_rows.append([delete_null_char(n) for n in r])
                 args_str = ','.join(self.cursor.mogrify("({})".format(column_string),x).decode('utf-8') for x in formated_rows)
             try:
-                insert_stament = 'insert into nt_{} values {};'.format(source_table,args_str)
+                insert_stament = 'insert into xyxy_{} values {};'.format(source_table,args_str)
                 self.cursor.execute(insert_stament)
             except Exception as e:
                 print(e)
@@ -100,7 +134,7 @@ class PostSqlConnect:
         return [x[0] for x in self.cursor.fetchall()]
     
     def delete_not_in_the_parent(self, child_table_name, ids_string): 
-        delete_stament = '''DELETE FROM nt_{} WHERE {};'''.format(child_table_name, ids_string)
+        delete_stament = '''DELETE FROM xyxy_{} WHERE {};'''.format(child_table_name, ids_string)
         self.cursor.execute(delete_stament)
 
 
@@ -122,9 +156,18 @@ class PostSqlConnect:
             self.connection.rollback()
 
     def copy_tables_from_main(self,table_name): 
-        copy_stament = '''create table nt_{} (like {} INCLUDING INDEXES);'''.format(table_name,table_name)
+        copy_stament = '''create table xyxy_{} (like {} INCLUDING INDEXES);'''.format(table_name,table_name)
+        self.cursor.execute(copy_stament);
+
+    def copy_tables_from_main_wo_pre(self,table_name): 
+        copy_stament = '''create table {} (like xyxy_{} INCLUDING INDEXES);'''.format(table_name,table_name)
         self.cursor.execute(copy_stament); 
-    
+        select_stament = '''INSERT INTO {}
+                            SELECT *
+                            FROM  xyxy_{};'''.format(table_name,table_name)
+        
+        self.cursor.execute(select_stament); 
+
     def close_conections(self): 
         self.cursor.close()
         self.connection.close()
